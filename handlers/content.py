@@ -110,18 +110,23 @@ async def _generate_script(working, state: FSMContext, topic: str):
         await working.edit_text(f"❌ Ошибка при создании сценария: {e}")
         return
 
-    await state.update_data(topic=topic, script=script)
-    await state.set_state(ContentCreation.reviewing_script)
+    await _show_script(working, state, topic, script)
 
+
+async def _show_script(working, state: FSMContext, topic: str, script: str):
+    """Show script with buttons and save message ID to state."""
     keyboard = InlineKeyboardMarkup(inline_keyboard=[[
         InlineKeyboardButton(text="✅ Принять", callback_data="script_ok"),
         InlineKeyboardButton(text="🔄 Пересоздать", callback_data="script_retry"),
     ]])
-    await working.edit_text(
-        f"<b>Сценарий:</b>\n\n{script}",
+    msg = await working.edit_text(
+        f"<b>Сценарий:</b>\n\n{script}\n\n"
+        f"<i>Или напиши правки в чат — я обновлю сценарий</i>",
         parse_mode="HTML",
         reply_markup=keyboard,
     )
+    await state.update_data(topic=topic, script=script, script_msg_id=msg.message_id)
+    await state.set_state(ContentCreation.reviewing_script)
 
 
 @router.callback_query(ContentCreation.reviewing_script, F.data == "script_retry")
@@ -135,16 +140,31 @@ async def retry_script(callback: CallbackQuery, state: FSMContext):
         await callback.message.edit_text(f"❌ Ошибка: {e}")
         return
 
-    await state.update_data(script=script)
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[[
-        InlineKeyboardButton(text="✅ Принять", callback_data="script_ok"),
-        InlineKeyboardButton(text="🔄 Пересоздать", callback_data="script_retry"),
-    ]])
-    await callback.message.edit_text(
-        f"<b>Сценарий:</b>\n\n{script}",
-        parse_mode="HTML",
-        reply_markup=keyboard,
-    )
+    await _show_script(callback.message, state, data["topic"], script)
+
+
+@router.message(ContentCreation.reviewing_script)
+async def handle_script_edit(message: Message, state: FSMContext):
+    """User sent edit request for the script."""
+    user_request = message.text.strip()
+    data = await state.get_data()
+
+    # Delete script message and user's edit request
+    try:
+        await message.bot.delete_message(message.chat.id, data["script_msg_id"])
+    except Exception:
+        pass
+    await message.delete()
+
+    working = await message.answer("⏳ Применяю правки...")
+
+    try:
+        updated_script = await qwen_service.edit_script(data["script"], user_request)
+    except Exception as e:
+        await working.edit_text(f"❌ Ошибка: {e}")
+        return
+
+    await _show_script(working, state, data["topic"], updated_script)
 
 
 # ── Step 3: Storyboard prompt ─────────────────────────────────────────────────

@@ -58,6 +58,30 @@ async def create_script(topic: str) -> str:
     return response.choices[0].message.content.strip()
 
 
+async def edit_script(script: str, user_request: str) -> str:
+    """Apply user's edit request to an existing script."""
+    response = await client.chat.completions.create(
+        model=config.QWEN_MODEL,
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "Ты профессиональный сценарист для коротких видео (YouTube Shorts / TikTok). "
+                    "Тебе дан готовый сценарий и правки от пользователя. "
+                    "Внеси правки, сохранив структуру и стиль. "
+                    "Верни только итоговый сценарий, без пояснений."
+                ),
+            },
+            {
+                "role": "user",
+                "content": f"Сценарий:\n{script}\n\nПравки: {user_request}",
+            },
+        ],
+        max_tokens=800,
+    )
+    return response.choices[0].message.content.strip()
+
+
 async def create_storyboard_prompt(topic: str, script: str) -> str:
     """Generate a visual storyboard prompt for Sora video generation."""
     response = await client.chat.completions.create(
