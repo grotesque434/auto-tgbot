@@ -7,7 +7,8 @@ Telegram-бот для автоматизированного создания �
 - **Поиск темы** — 5 идей для видео по запросу пользователя (ChatGPT)
 - **Создание сценария** — готовый скрипт диктора (ChatGPT)
 - **Промпт раскадровки** — визуальный промпт для генерации видео (ChatGPT)
-- **Генерация медиа** — видео или изображение (NanaBanana)
+- **Генерация видео** — OpenAI Sora (text-to-video)
+- **Генерация изображения** — OpenAI DALL-E 3 (альтернатива видео)
 - **Озвучка** — голос диктора (ElevenLabs)
 - **Субтитры** — автоматическая транскрипция и вшивание субтитров (Faster-Whisper + FFmpeg, бесплатно)
 - **Хранилище** — готовые материалы сохраняются на Google Drive
@@ -30,7 +31,7 @@ Auto_TGBOT/
 │   └── publish.py            # Публикация на YouTube
 ├── services/
 │   ├── openai_service.py     # Тема / сценарий / промпт раскадровки
-│   ├── nanabanana_service.py # Генерация видео и изображений
+│   ├── sora_service.py       # Генерация видео (Sora) и изображений (DALL-E 3)
 │   ├── elevenlabs_service.py # Озвучка
 │   ├── whisper_service.py    # Субтитры (Faster-Whisper)
 │   ├── gdrive_service.py     # Google Drive
@@ -96,7 +97,6 @@ python bot.py
 |--------|-----------|
 | [Telegram](https://t.me/BotFather) | `BOT_TOKEN` |
 | [OpenAI](https://platform.openai.com/api-keys) | `OPENAI_API_KEY` |
-| [NanaBanana](https://nanabanana.ai) | `NANABANANA_API_KEY` |
 | [ElevenLabs](https://elevenlabs.io) | `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID` |
 | [Google Cloud](https://console.cloud.google.com) | Service Account JSON (Drive API + Sheets API) |
 | [Google Drive](https://drive.google.com) | `GOOGLE_DRIVE_FOLDER_ID` |

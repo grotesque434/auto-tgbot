@@ -10,17 +10,10 @@ class Config:
     # Telegram
     BOT_TOKEN: str = field(default_factory=lambda: os.environ["BOT_TOKEN"])
 
-    # OpenAI
+    # OpenAI (ChatGPT + Sora + DALL-E — same API key)
     OPENAI_API_KEY: str = field(default_factory=lambda: os.environ["OPENAI_API_KEY"])
     OPENAI_MODEL: str = field(default_factory=lambda: os.getenv("OPENAI_MODEL", "gpt-4o"))
-
-    # NanaBanana
-    NANABANANA_API_KEY: str = field(default_factory=lambda: os.getenv("NANABANANA_API_KEY", ""))
-    NANABANANA_BASE_URL: str = field(default_factory=lambda: os.getenv("NANABANANA_BASE_URL", "https://api.nanabanana.ai"))
-
-    # Google Flow
-    GOOGLE_FLOW_API_KEY: str = field(default_factory=lambda: os.getenv("GOOGLE_FLOW_API_KEY", ""))
-    GOOGLE_FLOW_PROJECT_ID: str = field(default_factory=lambda: os.getenv("GOOGLE_FLOW_PROJECT_ID", ""))
+    SORA_MODEL: str = field(default_factory=lambda: os.getenv("SORA_MODEL", "sora-1.0"))
 
     # ElevenLabs
     ELEVENLABS_API_KEY: str = field(default_factory=lambda: os.getenv("ELEVENLABS_API_KEY", ""))

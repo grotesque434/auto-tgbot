@@ -6,7 +6,7 @@ from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKe
 from aiogram.fsm.context import FSMContext
 
 from handlers.states import ContentCreation
-from services import openai_service, nanabanana_service, elevenlabs_service, whisper_service
+from services import openai_service, sora_service, elevenlabs_service, whisper_service
 from services import gdrive_service, gsheets_service
 from utils import ffmpeg_utils
 
@@ -202,14 +202,14 @@ async def handle_media_choice(callback: CallbackQuery, state: FSMContext):
     video_link = ""
 
     try:
-        # 5a. Generate media (video or image)
-        await callback.message.answer("🎬 Генерирую медиа...")
+        # 5a. Generate media via Sora (video) or DALL-E (image)
+        await callback.message.answer("🎬 Генерирую медиа через Sora...")
         if media_type == "video":
             media_path = os.path.join(TEMP_DIR, f"{session_id}_raw.mp4")
-            await nanabanana_service.generate_video(data["storyboard"], media_path)
+            await sora_service.generate_video(data["storyboard"], media_path)
         else:
-            media_path = os.path.join(TEMP_DIR, f"{session_id}_image.jpg")
-            await nanabanana_service.generate_image(data["storyboard"], media_path)
+            media_path = os.path.join(TEMP_DIR, f"{session_id}_image.png")
+            await sora_service.generate_image(data["storyboard"], media_path)
 
         # 5b. Generate voiceover
         await callback.message.answer("🎙 Генерирую озвучку...")
