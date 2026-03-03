@@ -59,12 +59,17 @@ async def handle_prompt(message: Message, state: FSMContext):
     await state.update_data(topics=topics, user_prompt=prompt)
     await state.set_state(ContentCreation.choosing_topic)
 
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=f"{i + 1}. {t}", callback_data=f"topic_{i}")]
-        for i, t in enumerate(topics)
-    ])
-    # Edit working message to show topics — no new message
-    await working.edit_text("Выбери тему для видео:", reply_markup=keyboard)
+    # Show full topics in message text, numbered buttons below
+    topics_text = "\n\n".join(f"<b>{i + 1}.</b> {t}" for i, t in enumerate(topics))
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[[
+        InlineKeyboardButton(text=str(i + 1), callback_data=f"topic_{i}")
+        for i in range(len(topics))
+    ]])
+    await working.edit_text(
+        f"Выбери тему для видео:\n\n{topics_text}",
+        parse_mode="HTML",
+        reply_markup=keyboard,
+    )
 
 
 # ── Step 2: Script creation ───────────────────────────────────────────────────
