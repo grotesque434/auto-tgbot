@@ -10,10 +10,14 @@ class Config:
     # Telegram
     BOT_TOKEN: str = field(default_factory=lambda: os.environ["BOT_TOKEN"])
 
-    # OpenAI (ChatGPT + Sora + DALL-E — same API key)
-    OPENAI_API_KEY: str = field(default_factory=lambda: os.environ["OPENAI_API_KEY"])
-    OPENAI_MODEL: str = field(default_factory=lambda: os.getenv("OPENAI_MODEL", "gpt-4o"))
+    # OpenAI (Sora + DALL-E only)
+    OPENAI_API_KEY: str = field(default_factory=lambda: os.getenv("OPENAI_API_KEY", ""))
     SORA_MODEL: str = field(default_factory=lambda: os.getenv("SORA_MODEL", "sora-1.0"))
+
+    # Qwen (topic search, script, storyboard prompt)
+    QWEN_API_KEY: str = field(default_factory=lambda: os.environ["QWEN_API_KEY"])
+    QWEN_MODEL: str = field(default_factory=lambda: os.getenv("QWEN_MODEL", "qwen-plus"))
+    QWEN_BASE_URL: str = field(default_factory=lambda: os.getenv("QWEN_BASE_URL", "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"))
 
     # ElevenLabs
     ELEVENLABS_API_KEY: str = field(default_factory=lambda: os.getenv("ELEVENLABS_API_KEY", ""))

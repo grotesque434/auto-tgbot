@@ -6,7 +6,7 @@ from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKe
 from aiogram.fsm.context import FSMContext
 
 from handlers.states import ContentCreation
-from services import openai_service, sora_service, elevenlabs_service, whisper_service
+from services import qwen_service, sora_service, elevenlabs_service, whisper_service
 from services import gdrive_service, gsheets_service
 from utils import ffmpeg_utils
 
@@ -41,7 +41,7 @@ async def handle_prompt(message: Message, state: FSMContext):
     await message.answer("Ищу темы... ⏳")
 
     try:
-        topics = await openai_service.search_topics(prompt)
+        topics = await qwen_service.search_topics(prompt)
     except Exception as e:
         await message.answer(f"Ошибка при поиске тем: {e}")
         return
@@ -67,7 +67,7 @@ async def handle_topic_choice(callback: CallbackQuery, state: FSMContext):
     await callback.message.edit_text(f"Выбрана тема:\n<b>{topic}</b>\n\nСоздаю сценарий... ⏳", parse_mode="HTML")
 
     try:
-        script = await openai_service.create_script(topic)
+        script = await qwen_service.create_script(topic)
     except Exception as e:
         await callback.message.answer(f"Ошибка при создании сценария: {e}")
         return
@@ -94,7 +94,7 @@ async def retry_script(callback: CallbackQuery, state: FSMContext):
     await callback.message.edit_text("Пересоздаю сценарий... ⏳")
 
     try:
-        script = await openai_service.create_script(data["topic"])
+        script = await qwen_service.create_script(data["topic"])
     except Exception as e:
         await callback.message.answer(f"Ошибка: {e}")
         return
@@ -121,7 +121,7 @@ async def handle_script_ok(callback: CallbackQuery, state: FSMContext):
     await callback.message.edit_text("Создаю промпт раскадровки... ⏳")
 
     try:
-        storyboard = await openai_service.create_storyboard_prompt(data["topic"], data["script"])
+        storyboard = await qwen_service.create_storyboard_prompt(data["topic"], data["script"])
     except Exception as e:
         await callback.message.answer(f"Ошибка: {e}")
         return
@@ -148,7 +148,7 @@ async def retry_storyboard(callback: CallbackQuery, state: FSMContext):
     await callback.message.edit_text("Пересоздаю промпт... ⏳")
 
     try:
-        storyboard = await openai_service.create_storyboard_prompt(data["topic"], data["script"])
+        storyboard = await qwen_service.create_storyboard_prompt(data["topic"], data["script"])
     except Exception as e:
         await callback.message.answer(f"Ошибка: {e}")
         return

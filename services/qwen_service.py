@@ -1,14 +1,17 @@
 from openai import AsyncOpenAI
 from config import config
 
-
-client = AsyncOpenAI(api_key=config.OPENAI_API_KEY)
+# Qwen uses OpenAI-compatible API — only base_url and api_key differ
+client = AsyncOpenAI(
+    api_key=config.QWEN_API_KEY,
+    base_url=config.QWEN_BASE_URL,
+)
 
 
 async def search_topics(user_prompt: str) -> list[str]:
     """Generate 5 topic ideas based on user prompt."""
     response = await client.chat.completions.create(
-        model=config.OPENAI_MODEL,
+        model=config.QWEN_MODEL,
         messages=[
             {
                 "role": "system",
@@ -22,14 +25,12 @@ async def search_topics(user_prompt: str) -> list[str]:
             {"role": "user", "content": user_prompt},
         ],
         max_tokens=500,
-        temperature=0.8,
     )
     raw = response.choices[0].message.content.strip()
     topics = []
     for line in raw.splitlines():
         line = line.strip()
         if line and line[0].isdigit():
-            # Remove "1. ", "1) " etc.
             parts = line.split(". ", 1) if ". " in line else line.split(") ", 1)
             topics.append(parts[-1].strip())
     return topics[:5]
@@ -38,7 +39,7 @@ async def search_topics(user_prompt: str) -> list[str]:
 async def create_script(topic: str) -> str:
     """Generate a full video script for the given topic."""
     response = await client.chat.completions.create(
-        model=config.OPENAI_MODEL,
+        model=config.QWEN_MODEL,
         messages=[
             {
                 "role": "system",
@@ -53,20 +54,19 @@ async def create_script(topic: str) -> str:
             {"role": "user", "content": f"Тема видео: {topic}"},
         ],
         max_tokens=800,
-        temperature=0.7,
     )
     return response.choices[0].message.content.strip()
 
 
 async def create_storyboard_prompt(topic: str, script: str) -> str:
-    """Generate a visual storyboard prompt for NanaBanana/Flow video generation."""
+    """Generate a visual storyboard prompt for Sora video generation."""
     response = await client.chat.completions.create(
-        model=config.OPENAI_MODEL,
+        model=config.QWEN_MODEL,
         messages=[
             {
                 "role": "system",
                 "content": (
-                    "Ты эксперт по созданию промптов для генерации видео с помощью ИИ (NanaBanana, Google Flow). "
+                    "Ты эксперт по созданию промптов для генерации видео с помощью ИИ (OpenAI Sora). "
                     "На основе темы и сценария создай детальный промпт на английском языке для генерации визуального контента. "
                     "Опиши: визуальный стиль, цветовую палитру, движение камеры, атмосферу, ключевые сцены. "
                     "Промпт должен быть конкретным и подходить для текстово-видео генерации. "
@@ -79,6 +79,5 @@ async def create_storyboard_prompt(topic: str, script: str) -> str:
             },
         ],
         max_tokens=400,
-        temperature=0.7,
     )
     return response.choices[0].message.content.strip()
