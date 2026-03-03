@@ -65,8 +65,10 @@ async def handle_prompt(message: Message, state: FSMContext):
         InlineKeyboardButton(text=str(i + 1), callback_data=f"topic_{i}")
         for i in range(len(topics))
     ]])
+    await state.update_data(topics_msg_id=working.message_id)
     await working.edit_text(
-        f"Выбери тему для видео:\n\n{topics_text}",
+        f"Выбери тему для видео:\n\n{topics_text}\n\n"
+        f"<i>Или напиши свою тему в чат</i>",
         parse_mode="HTML",
         reply_markup=keyboard,
     )
@@ -74,18 +76,38 @@ async def handle_prompt(message: Message, state: FSMContext):
 
 # ── Step 2: Script creation ───────────────────────────────────────────────────
 
+@router.message(ContentCreation.choosing_topic)
+async def handle_custom_topic(message: Message, state: FSMContext):
+    """User typed their own topic instead of picking from the list."""
+    topic = message.text.strip()
+    data = await state.get_data()
+
+    # Delete topics list message and user's message
+    try:
+        await message.bot.delete_message(message.chat.id, data["topics_msg_id"])
+    except Exception:
+        pass
+    await message.delete()
+
+    working = await message.answer("⏳ Создаю сценарий...")
+    await _generate_script(working, state, topic)
+
+
 @router.callback_query(ContentCreation.choosing_topic, F.data.startswith("topic_"))
 async def handle_topic_choice(callback: CallbackQuery, state: FSMContext):
     idx = int(callback.data.split("_")[1])
     data = await state.get_data()
     topic = data["topics"][idx]
-
     await callback.message.edit_text("⏳ Создаю сценарий...")
+    await _generate_script(callback.message, state, topic)
 
+
+async def _generate_script(working, state: FSMContext, topic: str):
+    """Generate script and edit `working` message with the result."""
     try:
         script = await qwen_service.create_script(topic)
     except Exception as e:
-        await callback.message.edit_text(f"❌ Ошибка при создании сценария: {e}")
+        await working.edit_text(f"❌ Ошибка при создании сценария: {e}")
         return
 
     await state.update_data(topic=topic, script=script)
@@ -95,7 +117,7 @@ async def handle_topic_choice(callback: CallbackQuery, state: FSMContext):
         InlineKeyboardButton(text="✅ Принять", callback_data="script_ok"),
         InlineKeyboardButton(text="🔄 Пересоздать", callback_data="script_retry"),
     ]])
-    await callback.message.edit_text(
+    await working.edit_text(
         f"<b>Сценарий:</b>\n\n{script}",
         parse_mode="HTML",
         reply_markup=keyboard,
