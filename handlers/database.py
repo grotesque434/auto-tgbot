@@ -11,22 +11,23 @@ PAGE_SIZE = 5
 
 @router.message(F.text == "📊 База данных")
 async def show_database(message: Message):
-    await message.answer("Загружаю данные... ⏳")
+    working = await message.answer("⏳ Загружаю данные...")
 
     try:
         records = gsheets_service.get_all_records()
     except Exception as e:
-        await message.answer(f"Ошибка при загрузке базы: {e}")
+        await working.edit_text(f"❌ Ошибка при загрузке базы: {e}")
         return
 
     if not records:
-        await message.answer("База данных пуста.")
+        await working.edit_text("База данных пуста.")
         return
 
-    await _send_records_page(message, records, page=0)
+    await _render_page(working, records, page=0)
 
 
-async def _send_records_page(message: Message, records: list[dict], page: int):
+async def _render_page(msg, records: list[dict], page: int):
+    """Edit `msg` to show a page of records."""
     total = len(records)
     start = page * PAGE_SIZE
     end = min(start + PAGE_SIZE, total)
@@ -40,17 +41,13 @@ async def _send_records_page(message: Message, records: list[dict], page: int):
             f"   📅 {rec.get('Дата создания', '—')} | {rec.get('Статус', '—')}"
         )
 
-    text = "\n\n".join(lines)
-
     buttons = []
-    # Detail buttons for current page
     detail_row = [
         InlineKeyboardButton(text=f"#{rec.get('ID')}", callback_data=f"db_detail_{rec.get('ID')}")
         for rec in page_records
     ]
     buttons.append(detail_row)
 
-    # Pagination
     nav = []
     if page > 0:
         nav.append(InlineKeyboardButton(text="◀ Назад", callback_data=f"db_page_{page - 1}"))
@@ -59,22 +56,22 @@ async def _send_records_page(message: Message, records: list[dict], page: int):
     if nav:
         buttons.append(nav)
 
-    keyboard = InlineKeyboardMarkup(inline_keyboard=buttons)
-    await message.answer(text, parse_mode="HTML", reply_markup=keyboard)
+    await msg.edit_text(
+        "\n\n".join(lines),
+        parse_mode="HTML",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons),
+    )
 
 
 @router.callback_query(F.data.startswith("db_page_"))
 async def handle_page(callback: CallbackQuery):
     page = int(callback.data.split("_")[-1])
-    await callback.message.delete()
-
     try:
         records = gsheets_service.get_all_records()
     except Exception as e:
-        await callback.message.answer(f"Ошибка: {e}")
+        await callback.message.edit_text(f"❌ Ошибка: {e}")
         return
-
-    await _send_records_page(callback.message, records, page)
+    await _render_page(callback.message, records, page)
 
 
 @router.callback_query(F.data.startswith("db_detail_"))
@@ -114,10 +111,9 @@ async def handle_detail(callback: CallbackQuery):
 
 @router.callback_query(F.data == "db_back")
 async def handle_back(callback: CallbackQuery):
-    await callback.message.delete()
     try:
         records = gsheets_service.get_all_records()
     except Exception as e:
-        await callback.message.answer(f"Ошибка: {e}")
+        await callback.message.edit_text(f"❌ Ошибка: {e}")
         return
-    await _send_records_page(callback.message, records, page=0)
+    await _render_page(callback.message, records, page=0)

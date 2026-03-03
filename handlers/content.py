@@ -19,11 +19,12 @@ TEMP_DIR = "temp"
 @router.message(F.text == "🎬 Создать контент")
 async def start_content_creation(message: Message, state: FSMContext):
     await state.set_state(ContentCreation.waiting_for_prompt)
-    await message.answer(
+    sent = await message.answer(
         "Опиши тему или идею для видео.\n"
         "Например: <i>лайфхаки для продуктивности</i> или <i>интересные факты о космосе</i>",
         parse_mode="HTML",
     )
+    await state.update_data(prompt_msg_id=sent.message_id)
 
 
 @router.message(Command("cancel"))
@@ -38,9 +39,15 @@ async def cancel(message: Message, state: FSMContext):
 @router.message(ContentCreation.waiting_for_prompt)
 async def handle_prompt(message: Message, state: FSMContext):
     prompt = message.text.strip()
+    data = await state.get_data()
 
-    # Delete user's message and send single working message
+    # Delete both "Опиши тему" bot message and user's prompt message
+    try:
+        await message.bot.delete_message(message.chat.id, data["prompt_msg_id"])
+    except Exception:
+        pass
     await message.delete()
+
     working = await message.answer("⏳ Ищу темы...")
 
     try:
