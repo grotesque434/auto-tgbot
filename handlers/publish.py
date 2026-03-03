@@ -12,23 +12,21 @@ TEMP_DIR = "temp"
 
 @router.message(F.text == "📤 Опубликовать на YouTube")
 async def start_publish(message: Message, state: FSMContext):
-    await message.answer("Загружаю список материалов... ⏳")
+    working = await message.answer("⏳ Загружаю список материалов...")
 
     try:
         records = gsheets_service.get_all_records()
     except Exception as e:
-        await message.answer(f"Ошибка: {e}")
+        await working.edit_text(f"❌ Ошибка: {e}")
         return
 
-    # Show only unreleased records
     pending = [r for r in records if r.get("Статус") != "Опубликован" and r.get("ID видео (Drive)")]
 
     if not pending:
-        await message.answer("Нет материалов для публикации.\nВсе уже опубликованы или нет готовых видео.")
+        await working.edit_text("Нет материалов для публикации.\nВсе уже опубликованы или нет готовых видео.")
         return
 
     await state.set_state(Publishing.choosing_record)
-    await state.update_data(records=records)
 
     lines = ["<b>Выбери материал для публикации:</b>\n"]
     buttons = []
@@ -41,8 +39,11 @@ async def start_publish(message: Message, state: FSMContext):
             )
         ])
 
-    keyboard = InlineKeyboardMarkup(inline_keyboard=buttons)
-    await message.answer("\n".join(lines), parse_mode="HTML", reply_markup=keyboard)
+    await working.edit_text(
+        "\n".join(lines),
+        parse_mode="HTML",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons),
+    )
 
 
 @router.callback_query(Publishing.choosing_record, F.data.startswith("pub_"))
@@ -57,49 +58,39 @@ async def handle_record_choice(callback: CallbackQuery, state: FSMContext):
     await state.update_data(chosen_record=rec)
     await state.set_state(Publishing.setting_privacy)
 
-    text = (
-        f"<b>Публикация #{rec['ID']}</b>\n\n"
-        f"🎬 {rec.get('Тема', '—')}\n\n"
-        f"Выбери приватность:"
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[[
+        InlineKeyboardButton(text="🌍 Публичное", callback_data="priv_public"),
+        InlineKeyboardButton(text="🔒 Приватное", callback_data="priv_private"),
+        InlineKeyboardButton(text="🔗 По ссылке", callback_data="priv_unlisted"),
+    ]])
+    await callback.message.edit_text(
+        f"<b>#{rec['ID']}</b> — {rec.get('Тема', '—')}\n\nВыбери приватность:",
+        parse_mode="HTML",
+        reply_markup=keyboard,
     )
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [
-            InlineKeyboardButton(text="🌍 Публичное", callback_data="priv_public"),
-            InlineKeyboardButton(text="🔒 Приватное", callback_data="priv_private"),
-            InlineKeyboardButton(text="🔗 По ссылке", callback_data="priv_unlisted"),
-        ]
-    ])
-    await callback.message.edit_text(text, parse_mode="HTML", reply_markup=keyboard)
 
 
 @router.callback_query(Publishing.setting_privacy, F.data.startswith("priv_"))
 async def handle_privacy(callback: CallbackQuery, state: FSMContext):
-    privacy = callback.data.split("_")[1]  # public / private / unlisted
+    privacy = callback.data.split("_")[1]
     data = await state.get_data()
     rec = data["chosen_record"]
 
-    await callback.message.edit_text(
-        f"Загружаю видео с Google Drive и публикую на YouTube...\n"
-        f"Приватность: <b>{privacy}</b> ⏳",
-        parse_mode="HTML",
-    )
-
     video_id = rec.get("ID видео (Drive)", "")
     if not video_id:
-        await callback.message.answer("❌ Видео не найдено в Google Drive.")
+        await callback.message.edit_text("❌ Видео не найдено в Google Drive.")
         await state.clear()
         return
 
     os.makedirs(TEMP_DIR, exist_ok=True)
     local_path = os.path.join(TEMP_DIR, f"yt_upload_{rec['ID']}.mp4")
+    progress = callback.message
 
     try:
-        # Download from Google Drive
-        await callback.message.answer("⬇️ Скачиваю с Google Drive...")
+        await progress.edit_text("⬇️ [1/2] Скачиваю с Google Drive...")
         gdrive_service.download_file(video_id, local_path)
 
-        # Upload to YouTube
-        await callback.message.answer("⬆️ Загружаю на YouTube...")
+        await progress.edit_text("⬆️ [2/2] Загружаю на YouTube...")
         result = youtube_service.upload_video(
             video_path=local_path,
             title=rec.get("Тема", "Видео"),
@@ -107,14 +98,13 @@ async def handle_privacy(callback: CallbackQuery, state: FSMContext):
             privacy=privacy,
         )
 
-        # Update Google Sheets
         gsheets_service.update_status(
             record_id=rec["ID"],
             status="Опубликован",
             video_link=result["url"],
         )
 
-        await callback.message.answer(
+        await progress.edit_text(
             f"✅ <b>Опубликовано!</b>\n\n"
             f"▶️ <a href='{result['url']}'>Смотреть на YouTube</a>\n"
             f"📱 <a href='{result['shorts_url']}'>YouTube Shorts</a>",
@@ -122,7 +112,7 @@ async def handle_privacy(callback: CallbackQuery, state: FSMContext):
         )
 
     except Exception as e:
-        await callback.message.answer(f"❌ Ошибка при публикации: {e}")
+        await progress.edit_text(f"❌ Ошибка при публикации: {e}")
 
     finally:
         if os.path.exists(local_path):
